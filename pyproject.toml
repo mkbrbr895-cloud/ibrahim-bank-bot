@@ -1,0 +1,7 @@
+[project]
+name = "blank-python-project"
+version = "0.1.0"
+description = "A blank Python project."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []

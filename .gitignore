@@ -7,6 +7,12 @@ out-tsc
 *.tsbuildinfo
 .expo
 .expo-shared
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
 .next
 .turbo
 .svelte-kit
