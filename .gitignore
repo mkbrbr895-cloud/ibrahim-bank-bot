@@ -9,6 +9,7 @@ out-tsc
 .expo-shared
 .venv/
 venv/
+.pythonlibs/
 __pycache__/
 *.py[cod]
 .pytest_cache/
