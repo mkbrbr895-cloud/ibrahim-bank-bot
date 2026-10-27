@@ -2,13 +2,16 @@ import asyncio
 import logging
 import math
 import os
+import re
+from datetime import datetime, timedelta, timezone
 
-from aiogram import Bot, Dispatcher, Router
+from aiogram import Bot, Dispatcher, F, Router
 from aiogram.enums import ChatType
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.enums import ChatMemberStatus
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramForbiddenError
 from aiogram.filters import Command
 from aiogram.filters.command import CommandObject
-from aiogram.types import Message
+from aiogram.types import ChatPermissions, Message
 
 
 logging.basicConfig(
@@ -22,6 +25,17 @@ active_timer_tasks: set[asyncio.Task[None]] = set()
 
 MAX_TIMER_MINUTES = 7 * 24 * 60
 MAX_DESCRIPTION_LENGTH = 3500
+MUTE_DURATION = timedelta(minutes=5)
+MUTE_COMMAND_PATTERN = re.compile(r"/mute(?:@[A-Za-z0-9_]+)?", re.IGNORECASE)
+
+WELCOME_MESSAGE = (
+    "مرحباً بك {name} نورت القروب! 🤍\n"
+    "نتمنى لك وقتاً ممتعاً، ويرجى الالتزام بالقوانين التالية:\n"
+    "ممنوع الشقة الزايد أو الاستفزاز.\n"
+    "يمنع السب، الشتم، أو الألفاظ غير اللائقة نهائياً.\n"
+    "يمنع التكلم في أي مواضيع أو سوالف غير مناسبة.\n"
+    "⚠️ ملاحظة: أي مخالفة للقوانين ستعرضك لكتم صوت (Mute) لمدة 5 دقائق تمنعك من إرسال الرسائل."
+)
 
 
 def format_remaining(seconds: int) -> str:
@@ -35,6 +49,11 @@ def format_remaining(seconds: int) -> str:
 
 def timer_text(description: str, seconds: int) -> str:
     return f"⏳ {description}\nالوقت المتبقي: {format_remaining(seconds)}"
+
+
+def is_mute_trigger(text: str) -> bool:
+    text = text.strip()
+    return text == "كتم" or MUTE_COMMAND_PATTERN.fullmatch(text) is not None
 
 
 async def run_countdown(
@@ -112,6 +131,95 @@ async def create_timer(message: Message, command: CommandObject) -> None:
     )
     active_timer_tasks.add(task)
     task.add_done_callback(active_timer_tasks.discard)
+
+
+@router.message(F.new_chat_members)
+async def welcome_new_members(message: Message) -> None:
+    for member in message.new_chat_members:
+        if member.is_bot:
+            continue
+        await message.answer(WELCOME_MESSAGE.format(name=member.full_name))
+
+
+@router.message(F.reply_to_message, F.text)
+async def mute_replied_member(message: Message) -> None:
+    if not message.text or not is_mute_trigger(message.text):
+        return
+
+    if message.chat.type != ChatType.SUPERGROUP:
+        await message.reply("يعمل أمر الكتم في المجموعات الفائقة فقط.")
+        return
+
+    moderator = message.from_user
+    target = message.reply_to_message.from_user
+    if moderator is None or target is None:
+        await message.reply("تعذر تحديد المشرف أو العضو من الرسالة.")
+        return
+    if target.is_bot:
+        await message.reply("لا يمكن كتم حساب بوت بهذا الأمر.")
+        return
+
+    try:
+        moderator_status = await message.bot.get_chat_member(
+            chat_id=message.chat.id,
+            user_id=moderator.id,
+        )
+    except TelegramAPIError:
+        await message.reply("تعذر التحقق من صلاحياتك كمشرف.")
+        return
+
+    if moderator_status.status not in {
+        ChatMemberStatus.ADMINISTRATOR,
+        ChatMemberStatus.CREATOR,
+    }:
+        await message.reply("هذا الأمر متاح للمشرفين فقط.")
+        return
+
+    try:
+        target_status = await message.bot.get_chat_member(
+            chat_id=message.chat.id,
+            user_id=target.id,
+        )
+    except TelegramAPIError:
+        await message.reply("تعذر العثور على العضو في هذه المجموعة.")
+        return
+
+    if target_status.status in {
+        ChatMemberStatus.ADMINISTRATOR,
+        ChatMemberStatus.CREATOR,
+    }:
+        await message.reply("لا يمكن كتم مشرف أو مالك المجموعة.")
+        return
+
+    try:
+        await message.bot.restrict_chat_member(
+            chat_id=message.chat.id,
+            user_id=target.id,
+            permissions=ChatPermissions(
+                can_send_messages=False,
+                can_send_audios=False,
+                can_send_documents=False,
+                can_send_photos=False,
+                can_send_videos=False,
+                can_send_video_notes=False,
+                can_send_voice_notes=False,
+                can_send_polls=False,
+                can_send_other_messages=False,
+                can_add_web_page_previews=False,
+            ),
+            until_date=datetime.now(timezone.utc) + MUTE_DURATION,
+            use_independent_chat_permissions=True,
+        )
+    except (TelegramBadRequest, TelegramForbiddenError):
+        await message.reply(
+            "تعذر كتم العضو. تأكد أن البوت مشرف ولديه صلاحية تقييد الأعضاء."
+        )
+        return
+    except TelegramAPIError:
+        await message.reply("حدث خطأ أثناء تنفيذ الكتم؛ حاول مرة أخرى.")
+        return
+
+    await message.reply(f"تم كتم {target.full_name} لمدة 5 دقائق.")
 
 
 async def run_bot(token: str) -> None:
