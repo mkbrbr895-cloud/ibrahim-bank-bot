@@ -12,6 +12,7 @@ venv/
 .pythonlibs/
 __pycache__/
 *.py[cod]
+data/*.sqlite3*
 .pytest_cache/
 .ruff_cache/
 .next

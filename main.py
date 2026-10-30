@@ -6,12 +6,14 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot, Dispatcher, F, Router
-from aiogram.enums import ChatType
-from aiogram.enums import ChatMemberStatus
+from aiogram.enums import ChatMemberStatus, ChatType
 from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramForbiddenError
 from aiogram.filters import Command
 from aiogram.filters.command import CommandObject
 from aiogram.types import ChatPermissions, Message
+
+from bot_games_bank import router as games_bank_router
+from bot_storage import get_creator_identity, initialize_storage
 
 
 logging.basicConfig(
@@ -25,8 +27,9 @@ active_timer_tasks: set[asyncio.Task[None]] = set()
 
 MAX_TIMER_MINUTES = 7 * 24 * 60
 MAX_DESCRIPTION_LENGTH = 3500
-MUTE_DURATION = timedelta(minutes=5)
+MUTE_DURATION = timedelta(seconds=60)
 MUTE_COMMAND_PATTERN = re.compile(r"/mute(?:@[A-Za-z0-9_]+)?", re.IGNORECASE)
+MUTE_TEXT_PATTERN = re.compile(r"^\s*كتم\s*$")
 
 WELCOME_MESSAGE = (
     "مرحباً بك {name} نورت القروب! 🤍\n"
@@ -34,7 +37,7 @@ WELCOME_MESSAGE = (
     "ممنوع الشقة الزايد أو الاستفزاز.\n"
     "يمنع السب، الشتم، أو الألفاظ غير اللائقة نهائياً.\n"
     "يمنع التكلم في أي مواضيع أو سوالف غير مناسبة.\n"
-    "⚠️ ملاحظة: أي مخالفة للقوانين ستعرضك لكتم صوت (Mute) لمدة 5 دقائق تمنعك من إرسال الرسائل."
+    "⚠️ ملاحظة: أي مخالفة للقوانين ستعرضك لكتم صوت (Mute) لمدة دقيقة واحدة تمنعك من إرسال الرسائل."
 )
 
 
@@ -141,7 +144,8 @@ async def welcome_new_members(message: Message) -> None:
         await message.answer(WELCOME_MESSAGE.format(name=member.full_name))
 
 
-@router.message(F.reply_to_message, F.text)
+@router.message(F.reply_to_message, F.text.regexp(MUTE_TEXT_PATTERN))
+@router.message(F.reply_to_message, Command("mute"))
 async def mute_replied_member(message: Message) -> None:
     if not message.text or not is_mute_trigger(message.text):
         return
@@ -173,6 +177,15 @@ async def mute_replied_member(message: Message) -> None:
         ChatMemberStatus.CREATOR,
     }:
         await message.reply("هذا الأمر متاح للمشرفين فقط.")
+        return
+
+    is_creator = await asyncio.to_thread(
+        get_creator_identity,
+        target.id,
+        target.username,
+    )
+    if is_creator:
+        await message.reply("⚠️ لا يمكنك كتم مطور وصانع البوت!")
         return
 
     try:
@@ -219,15 +232,17 @@ async def mute_replied_member(message: Message) -> None:
         await message.reply("حدث خطأ أثناء تنفيذ الكتم؛ حاول مرة أخرى.")
         return
 
-    await message.reply(f"تم كتم {target.full_name} لمدة 5 دقائق.")
+    await message.reply(f"تم كتم {target.full_name} لمدة دقيقة واحدة.")
 
 
 async def run_bot(token: str) -> None:
     bot = Bot(token=token)
     dispatcher = Dispatcher()
     dispatcher.include_router(router)
+    dispatcher.include_router(games_bank_router)
 
     try:
+        await asyncio.to_thread(initialize_storage)
         await dispatcher.start_polling(bot, close_bot_session=False)
     finally:
         tasks = tuple(active_timer_tasks)

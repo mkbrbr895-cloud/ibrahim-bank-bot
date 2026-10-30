@@ -1,9 +1,10 @@
 [project]
 name = "telegram-timer-bot"
 version = "0.1.0"
-description = "A temporary Telegram countdown bot built with aiogram."
+description = "A Telegram group bot with timers, welcome messages, moderation, flag games, and persistent game points."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiogram>=3.31.0",
+    "pillow>=13.0.0",
 ]
