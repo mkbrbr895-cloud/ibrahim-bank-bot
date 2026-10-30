@@ -16,12 +16,12 @@ from bot_storage import (
     transfer_points,
 )
 from bot_visuals import (
-    COUNTRIES,
-    COUNTRY_BY_CODE,
+    FLAG_BY_CODE,
+    FLAGS_DATA,
     accepted_country_answers,
+    flag_code,
     normalize_country_name,
     render_bank_card_png,
-    render_flag_png,
 )
 
 
@@ -81,20 +81,20 @@ async def start_flag_game_handler(message: Message) -> None:
         return
 
     current_code = await asyncio.to_thread(active_flag_country, message.chat.id)
-    choices = [country for country in COUNTRIES if country.code != current_code]
-    country = random.choice(choices or list(COUNTRIES))
+    choices = [flag for flag in FLAGS_DATA if flag_code(flag) != current_code]
+    flag = random.choice(choices or FLAGS_DATA)
+    country_code = flag_code(flag)
 
     await asyncio.to_thread(
         start_flag_game,
         message.chat.id,
-        country.code,
+        country_code,
         message.from_user.id if message.from_user else 0,
     )
-    image_data = await asyncio.to_thread(render_flag_png, country.code)
-    photo = BufferedInputFile(image_data, filename=f"flag-{country.code}.png")
-    await message.answer_photo(
-        photo=photo,
-        caption="🌍 خمن اسم الدولة! أول إجابة صحيحة تحصل على 50 نقطة.",
+    await message.bot.send_photo(
+        chat_id=message.chat.id,
+        photo=flag["url"],
+        caption="خمن علم أي دولة هذا؟ 🤔",
     )
 
 
@@ -273,16 +273,16 @@ async def guess_flag_handler(message: Message) -> None:
         return
 
     country_code = await asyncio.to_thread(active_flag_country, message.chat.id)
-    country = COUNTRY_BY_CODE.get(country_code or "")
-    if country is None:
+    flag = FLAG_BY_CODE.get(country_code or "")
+    if flag is None:
         return
 
     winner = await asyncio.to_thread(
         claim_flag_answer,
         message.chat.id,
-        country.code,
+        country_code,
         normalize_country_name(text),
-        accepted_country_answers(country),
+        accepted_country_answers(flag),
         user.id,
         user.username,
         user.full_name,
@@ -291,7 +291,7 @@ async def guess_flag_handler(message: Message) -> None:
         return
 
     await message.answer(
-        f"🎉 مبروك {user.full_name}! الدولة هي {country.name}.\n"
+        f"🎉 مبروك {user.full_name}! الدولة هي {flag['name']}.\n"
         f"حصلت على {FLAG_REWARD} نقطة، ورصيدك الآن "
         f"{int(winner['points']):,} نقطة."
     )
