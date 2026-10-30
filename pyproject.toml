@@ -1,7 +1,7 @@
 [project]
 name = "telegram-timer-bot"
 version = "0.1.0"
-description = "A Telegram group bot with timers, welcome messages, moderation, flag games, and persistent game points."
+description = "A Telegram group bot with flag games, salaries, and a persistent points bank."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
