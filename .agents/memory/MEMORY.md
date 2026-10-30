@@ -1,0 +1,1 @@
+- [Salary job odds](salary-job-odds.md) — the listed job percentages are relative weights normalized into one exclusive random choice.

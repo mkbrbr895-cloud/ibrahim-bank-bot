@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from pathlib import Path
 import secrets
 import sqlite3
+import time
 from typing import Iterator
 
 
@@ -9,6 +10,7 @@ CREATOR_USERNAME = "ibrahimroblox14grm"
 CREATOR_ACCOUNT_KEY = "creator"
 TRANSFER_FEE = 10
 FLAG_REWARD = 50
+SALARY_COOLDOWN_SECONDS = 60 * 60
 
 DATABASE_PATH = Path(__file__).resolve().parent / "data" / "bot.sqlite3"
 
@@ -28,6 +30,11 @@ CREATE TABLE IF NOT EXISTS flag_games (
     country_code TEXT NOT NULL,
     started_by INTEGER,
     started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS salary_claims (
+    telegram_user_id INTEGER PRIMARY KEY,
+    claimed_at INTEGER NOT NULL
 );
 """
 
@@ -203,6 +210,63 @@ def create_or_get_account(
             *_user_fields(telegram_user_id, username, display_name),
         )
         return account
+
+
+def deposit_salary(
+    telegram_user_id: int,
+    username: str | None,
+    display_name: str,
+    base_salary: int,
+    tip: int,
+    now: int | None = None,
+) -> dict[str, object]:
+    claimed_at = int(time.time()) if now is None else now
+    with _transaction() as connection:
+        previous_claim = connection.execute(
+            "SELECT claimed_at FROM salary_claims WHERE telegram_user_id = ?",
+            (telegram_user_id,),
+        ).fetchone()
+        if previous_claim is not None:
+            elapsed = claimed_at - int(previous_claim["claimed_at"])
+            remaining_seconds = SALARY_COOLDOWN_SECONDS - elapsed
+            if remaining_seconds > 0:
+                remaining_minutes = (remaining_seconds + 59) // 60
+                return {
+                    "status": "cooldown",
+                    "remaining_minutes": remaining_minutes,
+                }
+
+        account = _ensure_account(
+            connection,
+            telegram_user_id,
+            username,
+            display_name,
+        )
+        total = base_salary + tip
+        connection.execute(
+            "UPDATE accounts SET points = points + ? WHERE account_key = ?",
+            (total, account["account_key"]),
+        )
+        connection.execute(
+            """
+            INSERT INTO salary_claims (telegram_user_id, claimed_at)
+            VALUES (?, ?)
+            ON CONFLICT(telegram_user_id) DO UPDATE SET
+                claimed_at = excluded.claimed_at
+            """,
+            (telegram_user_id, claimed_at),
+        )
+        updated_account = connection.execute(
+            "SELECT * FROM accounts WHERE account_key = ?",
+            (account["account_key"],),
+        ).fetchone()
+        return {
+            "status": "ok",
+            "account": dict(updated_account),
+            "base_salary": base_salary,
+            "tip": tip,
+            "total": total,
+        }
 
 
 def get_creator_identity(telegram_user_id: int, username: str | None) -> bool:

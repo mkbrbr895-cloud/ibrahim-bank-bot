@@ -11,6 +11,7 @@ from bot_storage import (
     active_flag_country,
     claim_flag_answer,
     create_or_get_account,
+    deposit_salary,
     start_flag_game,
     transfer_points,
 )
@@ -28,10 +29,17 @@ router = Router(name="games-and-bank")
 
 FLAG_START_PATTERN = re.compile(r"^\s*(?:/?علم(?:@[A-Za-z0-9_]+)?|تخمين)\s*$")
 BANK_COMMAND_PATTERN = re.compile(r"^\s*/?(?:حسابي|بنك)(?:@[A-Za-z0-9_]+)?\s*$")
+SALARY_COMMAND_PATTERN = re.compile(r"^\s*/?راتب(?:@[A-Za-z0-9_]+)?\s*$")
 TRANSFER_COMMAND_PATTERN = re.compile(
     r"^\s*/?تحويل(?:@[A-Za-z0-9_]+)?(?:\s+.*)?$"
 )
 MAX_TRANSFER_AMOUNT = 1_000_000_000_000
+SALARY_JOBS = (
+    ("عامل نظافة 🧑🏼‍🔧", 300, 80),
+    ("صباغ 💅🏼", 500, 50),
+    ("دكتور 🧑🏼‍🔬", 1000, 40),
+    ("واحد ماكل مندي 🍗", 10_000, 10),
+)
 
 
 def _display_card_number(card_number: str) -> str:
@@ -93,6 +101,49 @@ async def show_bank_account(message: Message) -> None:
         f"رصيدك: {int(account['points']):,} نقطة"
     )
     await message.answer_photo(photo=photo, caption=caption)
+
+
+@router.message(
+    F.chat.type.in_({"group", "supergroup"}),
+    F.text,
+    F.text.regexp(SALARY_COMMAND_PATTERN),
+)
+async def claim_salary_handler(message: Message) -> None:
+    user = message.from_user
+    if user is None:
+        return
+
+    job_name, base_salary, _weight = random.choices(
+        SALARY_JOBS,
+        weights=[job[2] for job in SALARY_JOBS],
+        k=1,
+    )[0]
+    tip = random.randint(1, 100)
+    result = await asyncio.to_thread(
+        deposit_salary,
+        user.id,
+        user.username,
+        user.full_name,
+        base_salary,
+        tip,
+    )
+
+    if result["status"] == "cooldown":
+        await message.reply(
+            "⏳ لقد استلمت راتبك مؤخراً! يرجى الانتظار "
+            f"{int(result['remaining_minutes'])} دقيقة لاستلام راتبك القادم."
+        )
+        return
+
+    account = result["account"]
+    await message.reply(
+        f"💼 وظيفتك: {job_name}\n"
+        f"الراتب الأساسي: {base_salary:,} نقطة\n"
+        f"دلعتك واعطيتك بخشيش {tip} نقطة 😉\n"
+        f"إجمالي الإيداع: {base_salary + tip:,} نقطة\n"
+        "رصيدك الجديد في بنك إبراهيم الدولي: "
+        f"{int(account['points']):,} نقطة"
+    )
 
 
 @router.message(
