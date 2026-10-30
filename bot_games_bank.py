@@ -31,7 +31,7 @@ HELP_COMMAND_PATTERN = re.compile(
     r"^\s*/?(?:اوامر|الأوامر|مساعدة|help)(?:@[A-Za-z0-9_]+)?\s*$",
     re.IGNORECASE,
 )
-FLAG_START_PATTERN = re.compile(r"^\s*(?:/?علم(?:@[A-Za-z0-9_]+)?|تخمين)\s*$")
+FLAG_START_PATTERN = re.compile(r"^\s*(?:اعلام|أعلام)\s*$")
 BANK_COMMAND_PATTERN = re.compile(r"^\s*/?(?:حسابي|بنك)(?:@[A-Za-z0-9_]+)?\s*$")
 SALARY_COMMAND_PATTERN = re.compile(r"^\s*/?راتب(?:@[A-Za-z0-9_]+)?\s*$")
 TRANSFER_COMMAND_PATTERN = re.compile(
@@ -54,7 +54,7 @@ HELP_MESSAGE = (
     "▫️ راتب ↢ لاستلام وظيفتك العشوائية وراتبك مع البخشيش (متاح كل ساعة).\n"
     "▫️ تحويل [المبلغ] ↢ بالرد على رسالة العضو لتحويل النقاط له (عمولة 10 نقاط).\n"
     "🎮 الألعاب والتسلية:\n"
-    "▫️ علم أو تخمين ↢ لبدء لعبة تخمين أعلام الدول والحصول على 50 نقطة عند الإجابة الصحيحة.\n"
+    "▫️ اعلام ↢ لبدء لعبة تخمين أعلام الدول والحصول على 50 نقطة.\n"
     "══════════════════\n"
     "👑 المطور: @Ibrahimroblox14GRM\n"
     "══════════════════"
@@ -269,9 +269,6 @@ async def guess_flag_handler(message: Message) -> None:
         return
     if message.chat.type not in {"group", "supergroup"}:
         return
-    if text.strip().casefold() == "تخمين":
-        return
-
     country_code = await asyncio.to_thread(active_flag_country, message.chat.id)
     flag = FLAG_BY_CODE.get(country_code or "")
     if flag is None:
