@@ -27,6 +27,10 @@ from bot_visuals import (
 
 router = Router(name="games-and-bank")
 
+HELP_COMMAND_PATTERN = re.compile(
+    r"^\s*/?(?:اوامر|الأوامر|مساعدة|help)(?:@[A-Za-z0-9_]+)?\s*$",
+    re.IGNORECASE,
+)
 FLAG_START_PATTERN = re.compile(r"^\s*(?:/?علم(?:@[A-Za-z0-9_]+)?|تخمين)\s*$")
 BANK_COMMAND_PATTERN = re.compile(r"^\s*/?(?:حسابي|بنك)(?:@[A-Za-z0-9_]+)?\s*$")
 SALARY_COMMAND_PATTERN = re.compile(r"^\s*/?راتب(?:@[A-Za-z0-9_]+)?\s*$")
@@ -41,9 +45,29 @@ SALARY_JOBS = (
     ("واحد ماكل مندي 🍗", 10_000, 10),
 )
 
+HELP_MESSAGE = (
+    "══════════════════\n"
+    "🏛️ دليل أوامر بنك إبراهيم الدولي 🏛️\n"
+    "══════════════════\n"
+    "💳 الخدمات البنكية:\n"
+    "▫️ حسابي أو بنك ↢ لعرض بطاقتك البنكية ورصيدك الحالي.\n"
+    "▫️ راتب ↢ لاستلام وظيفتك العشوائية وراتبك مع البخشيش (متاح كل ساعة).\n"
+    "▫️ تحويل [المبلغ] ↢ بالرد على رسالة العضو لتحويل النقاط له (عمولة 10 نقاط).\n"
+    "🎮 الألعاب والتسلية:\n"
+    "▫️ علم أو تخمين ↢ لبدء لعبة تخمين أعلام الدول والحصول على 50 نقطة عند الإجابة الصحيحة.\n"
+    "══════════════════\n"
+    "👑 المطور: @Ibrahimroblox14GRM\n"
+    "══════════════════"
+)
+
 
 def _display_card_number(card_number: str) -> str:
     return " ".join(card_number[index : index + 4] for index in range(0, 16, 4))
+
+
+@router.message(F.text.regexp(HELP_COMMAND_PATTERN))
+async def show_help(message: Message) -> None:
+    await message.answer(HELP_MESSAGE)
 
 
 @router.message(
