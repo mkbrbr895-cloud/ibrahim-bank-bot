@@ -11,6 +11,7 @@ CREATOR_ACCOUNT_KEY = "creator"
 TRANSFER_FEE = 10
 FLAG_REWARD = 50
 SALARY_COOLDOWN_SECONDS = 60 * 60
+RPS_REWARD = 250
 
 DATABASE_PATH = Path(__file__).resolve().parent / "data" / "bot.sqlite3"
 
@@ -210,6 +211,33 @@ def create_or_get_account(
             *_user_fields(telegram_user_id, username, display_name),
         )
         return account
+
+
+def award_points(
+    telegram_user_id: int,
+    username: str | None,
+    display_name: str,
+    amount: int,
+) -> dict[str, object]:
+    if amount <= 0:
+        raise ValueError("Award amount must be positive.")
+
+    with _transaction() as connection:
+        account = _ensure_account(
+            connection,
+            telegram_user_id,
+            username,
+            display_name,
+        )
+        connection.execute(
+            "UPDATE accounts SET points = points + ? WHERE account_key = ?",
+            (amount, account["account_key"]),
+        )
+        updated_account = connection.execute(
+            "SELECT * FROM accounts WHERE account_key = ?",
+            (account["account_key"],),
+        ).fetchone()
+        return dict(updated_account)
 
 
 def deposit_salary(

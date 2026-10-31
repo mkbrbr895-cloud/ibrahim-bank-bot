@@ -4,6 +4,7 @@ import os
 
 from aiogram import Bot, Dispatcher
 
+from bot_rps import router as rps_router
 from bot_games_bank import router as games_bank_router
 from bot_storage import initialize_storage
 
@@ -15,6 +16,7 @@ logging.basicConfig(
 async def run_bot(token: str) -> None:
     bot = Bot(token=token)
     dispatcher = Dispatcher()
+    dispatcher.include_router(rps_router)
     dispatcher.include_router(games_bank_router)
 
     try:
