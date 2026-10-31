@@ -7,6 +7,9 @@ from aiogram.types import BufferedInputFile, Message
 
 from bot_storage import (
     FLAG_REWARD,
+    NUMBER_GUESS_REWARD,
+    RAFFLE_REWARD,
+    RPS_REWARD,
     TRANSFER_FEE,
     active_flag_country,
     claim_flag_answer,
@@ -56,7 +59,9 @@ HELP_MESSAGE = (
     "🎮 الألعاب والتسلية:\n"
     "▫️ العاب أو الألعاب ↢ لعرض الألعاب المتوفرة وطريقة تشغيلها.\n"
     "▫️ اعلام ↢ لبدء لعبة تخمين أعلام الدول والحصول على 50 نقطة.\n"
-    "▫️ تحدي ↢ للعب حجرة ورقة مقص والفوز بـ250 نقطة.\n"
+    f"▫️ تحدي ↢ للعب حجرة ورقة مقص والفوز بـ{RPS_REWARD} نقطة.\n"
+    f"▫️ بدء التخمين أو خمن ↢ لتخمين رقم من 1 إلى 50 والفوز بـ{NUMBER_GUESS_REWARD} نقطة.\n"
+    f"▫️ قرعة ↢ للفوز بـ{RAFFLE_REWARD} نقطة عند سحب القرعة.\n"
     "══════════════════\n"
     "👑 المطور: @Ibrahimroblox14GRM\n"
     "══════════════════"

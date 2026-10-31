@@ -12,6 +12,8 @@ TRANSFER_FEE = 10
 FLAG_REWARD = 50
 SALARY_COOLDOWN_SECONDS = 60 * 60
 RPS_REWARD = 250
+NUMBER_GUESS_REWARD = 300
+RAFFLE_REWARD = 30
 
 DATABASE_PATH = Path(__file__).resolve().parent / "data" / "bot.sqlite3"
 
